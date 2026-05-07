@@ -1,0 +1,89 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "System user (Client or Lawyer)",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "email": { "type": "string" },
+        "fullName": { "type": "string" },
+        "avatarUrl": { "type": "string" },
+        "role": { "type": "string", "enum": ["client", "lawyer", "admin"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "isVerified": { "type": "boolean" },
+        "nbaEnrollmentNumber": { "type": "string", "description": "Required only for lawyers" }
+      },
+      "required": ["userId", "email", "role", "createdAt"]
+    },
+    "LawyerProfile": {
+      "title": "Lawyer Profile",
+      "description": "Extended profile for lawyers including SaaS subscription details",
+      "type": "object",
+      "properties": {
+        "lawyerId": { "type": "string" },
+        "bio": { "type": "string" },
+        "specialties": { "type": "array", "items": { "type": "string" } },
+        "subscriptionTier": { "type": "string", "enum": ["basic", "pro", "enterprise"] },
+        "subscriptionStatus": { "type": "string", "enum": ["active", "expired"] },
+        "verificationStatus": { "type": "string", "enum": ["pending", "verified", "rejected"] },
+        "averageRating": { "type": "number" },
+        "consultationFee": { "type": "number" }
+      },
+      "required": ["lawyerId", "subscriptionTier", "verificationStatus"]
+    },
+    "Case": {
+      "title": "Case",
+      "description": "A legal service engagement",
+      "type": "object",
+      "properties": {
+        "caseId": { "type": "string" },
+        "clientId": { "type": "string" },
+        "lawyerId": { "type": "string" },
+        "serviceType": { "type": "string" },
+        "tier": { "type": "string", "enum": ["High", "Medium", "Low"] },
+        "status": { "type": "string", "enum": ["Diagnostic", "Drafting", "Awaiting Client Review", "Filing", "Completed"] },
+        "totalFee": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["caseId", "clientId", "serviceType", "status"]
+    },
+    "Milestone": {
+      "title": "Milestone",
+      "description": "Progress marker within a case",
+      "type": "object",
+      "properties": {
+        "caseId": { "type": "string" },
+        "milestoneId": { "type": "string" },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "isCompleted": { "type": "boolean" },
+        "completedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["caseId", "milestoneId", "title", "isCompleted"]
+    },
+    "Document": {
+      "title": "Document",
+      "description": "Metadata for encrypted legal documents",
+      "type": "object",
+      "properties": {
+        "docId": { "type": "string" },
+        "caseId": { "type": "string" },
+        "ownerId": { "type": "string" },
+        "fileName": { "type": "string" },
+        "fileUrl": { "type": "string" },
+        "mimeType": { "type": "string" },
+        "encryptionKeyId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      }
+    }
+  },
+  "firestore": {
+    "/users/{userId}": { "schema": "User", "description": "Main user collection" },
+    "/lawyers/{lawyerId}": { "schema": "LawyerProfile", "description": "Lawyer-specific metadata" },
+    "/cases/{caseId}": { "schema": "Case", "description": "Legal service cases" },
+    "/cases/{caseId}/milestones/{milestoneId}": { "schema": "Milestone", "description": "Milestones for a case" },
+    "/documents/{docId}": { "schema": "Document", "description": "Secure document vault" }
+  }
+}

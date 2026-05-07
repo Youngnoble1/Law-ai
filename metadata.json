@@ -1,0 +1,6 @@
+{
+  "name": "Law ai",
+  "description": "Secure Nigerian legal-tech marketplace with AI diagnostic intake and NBA-verified legal consultations.",
+  "requestFramePermissions": ["camera", "microphone"],
+  "majorCapabilities": []
+}

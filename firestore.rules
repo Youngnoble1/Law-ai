@@ -1,0 +1,73 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // 0. Default Deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // 3. Primitives
+    function isSignedIn() { return request.auth != null; }
+    function isOwner(userId) { return isSignedIn() && request.auth.uid == userId; }
+    function isEmailVerified() { return request.auth.token.email_verified == true; }
+    function incoming() { return request.resource.data; }
+    function existing() { return resource.data; }
+    function isValidId(id) { return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$'); }
+    
+    // 2. Validation Blueprints
+    function isValidUser(data) {
+      return data.keys().hasAll(['userId', 'email', 'role', 'createdAt']) &&
+             data.userId == request.auth.uid &&
+             data.role in ['client', 'lawyer', 'admin'] &&
+             data.email is string && data.email.size() <= 200 &&
+             data.createdAt == request.time;
+    }
+
+    function isValidCase(data) {
+      return data.keys().hasAll(['caseId', 'clientId', 'serviceType', 'status', 'createdAt']) &&
+             data.clientId == request.auth.uid &&
+             data.caseId is string &&
+             data.status in ['Diagnostic', 'Drafting', 'Awaiting Client Review', 'Filing', 'Completed'] &&
+             data.createdAt == request.time;
+    }
+
+    // --- Collections ---
+
+    match /users/{userId} {
+      allow read: if isSignedIn(); // Allow reading other users (e.g. lawyers)
+      allow create: if isSignedIn() && isValidId(userId) && isValidUser(incoming());
+      // Tiered update: User can update basic info and avatar
+      allow update: if isOwner(userId) && 
+                      incoming().diff(existing()).affectedKeys().hasOnly(['fullName', 'avatarUrl', 'isVerified']) &&
+                      incoming().role == existing().role;
+    }
+
+    match /lawyers/{lawyerId} {
+      allow get: if isSignedIn();
+      allow create: if isOwner(lawyerId);
+      allow update: if isOwner(lawyerId) && 
+                      incoming().diff(existing()).affectedKeys().hasOnly(['specialties', 'consultationFee', 'bio']);
+    }
+
+    match /cases/{caseId} {
+      allow get: if isSignedIn() && (isOwner(existing().clientId) || isOwner(existing().lawyerId));
+      allow list: if isSignedIn() && (resource.data.clientId == request.auth.uid || resource.data.lawyerId == request.auth.uid);
+      allow create: if isSignedIn() && isValidCase(incoming());
+      // Updates: Lawyer or Client updates status
+      allow update: if isSignedIn() && (isOwner(existing().lawyerId) || isOwner(existing().clientId)) &&
+                      incoming().diff(existing()).affectedKeys().hasOnly(['status', 'updatedAt']) && 
+                      incoming().updatedAt == request.time;
+    }
+
+    match /cases/{caseId}/milestones/{milestoneId} {
+      allow read: if isSignedIn() && (get(/databases/$(database)/documents/cases/$(caseId)).data.clientId == request.auth.uid || 
+                                     get(/databases/$(database)/documents/cases/$(caseId)).data.lawyerId == request.auth.uid);
+      allow create, update: if isOwner(get(/databases/$(database)/documents/cases/$(caseId)).data.lawyerId);
+    }
+
+    match /documents/{docId} {
+      allow read, write: if isSignedIn() && (isOwner(incoming().ownerId) || isOwner(existing().ownerId));
+    }
+  }
+}
